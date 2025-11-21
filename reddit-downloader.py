@@ -2,6 +2,48 @@ import argparse
 import os
 import subprocess
 import sys
+import re
+
+def clean_filenames(folder):
+    """
+    Iterates through files in the folder and cleans the filenames 
+    according to the pattern: [N]__[OP]__[CleanedName].ext
+    """
+    print(f"Post-processing filenames in {folder}...")
+    for filename in os.listdir(folder):
+        # We expect the format: Number__Author__Title.ext
+        # But gallery-dl might have sanitized the Title part already (e.g. spaces to underscores)
+        # We want to enforce our strict cleaning: remove everything except a-zA-Z0-9_
+        
+        parts = filename.split("__")
+        if len(parts) >= 3:
+            # Reconstruct the parts
+            # The last part contains the title and extension
+            # But title might contain __ if the original title had it? 
+            # Let's assume the first two __ are the separators.
+            
+            index = parts[0]
+            uploader = parts[1]
+            # The rest is the title + extension
+            rest = "__".join(parts[2:])
+            
+            # Split extension
+            title_part, ext = os.path.splitext(rest)
+            
+            # Clean the title
+            # Remove all characters that are NOT alphanumeric or underscore
+            cleaned_title = re.sub(r'[^a-zA-Z0-9_]', '', title_part)
+            
+            new_filename = f"{index}__{uploader}__{cleaned_title}{ext}"
+            
+            if new_filename != filename:
+                old_path = os.path.join(folder, filename)
+                new_path = os.path.join(folder, new_filename)
+                try:
+                    os.rename(old_path, new_path)
+                    print(f"Renamed: {filename} -> {new_filename}")
+                except OSError as e:
+                    print(f"Error renaming {filename}: {e}")
 
 def download_reddit_videos(url, folder, download_images=False, downloader="yt-dlp"):
     """
@@ -35,9 +77,14 @@ def download_reddit_videos(url, folder, download_images=False, downloader="yt-dl
     
     if downloader == "gallery-dl":
         print(f"Using gallery-dl...")
+        # Use --filename to set the initial format
+        # {num}: Index
+        # {author}: OP
+        # {title}: Title
         command = [
             sys.executable, "-m", "gallery_dl",
             "--directory", full_path,
+            "--filename", "{num}__{author}__{title}.{extension}",
             url
         ]
         
@@ -55,12 +102,20 @@ def download_reddit_videos(url, folder, download_images=False, downloader="yt-dl
         if download_images:
              print("Warning: yt-dlp is primarily for videos. Some images might not be downloaded.")
         
+        # Construct the output template: [N]__[OP]__[CleanedName].ext
+        # %(playlist_index|1)s: Index (defaults to 1 if not in a playlist)
+        # %(uploader)s: Original Poster (OP)
+        # %(title)s: Title (will be cleaned by --replace-in-metadata)
+        output_template = "%(playlist_index|1)s__%(uploader)s__%(title)s.%(ext)s"
+
         # -o specifies the output template inside the folder
         # --paths specifies the download directory
+        # --replace-in-metadata: Cleans the title by removing non-alphanumeric characters (keeping underscores)
         command = [
             sys.executable, "-m", "yt_dlp",
             "--paths", full_path,
-            "-o", "%(title)s.%(ext)s",
+            "-o", output_template,
+            "--replace-in-metadata", "title", "[^a-zA-Z0-9_]", "",
             url
         ]
 
@@ -70,6 +125,10 @@ def download_reddit_videos(url, folder, download_images=False, downloader="yt-dl
     try:
         subprocess.run(command, check=True)
         print("Download completed successfully.")
+        
+        if downloader == "gallery-dl":
+            clean_filenames(full_path)
+            
     except subprocess.CalledProcessError as e:
         print(f"Error occurred during download: {e}")
         # Don't exit immediately if it's just a "no video found" error from yt-dlp, 
