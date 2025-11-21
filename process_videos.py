@@ -134,7 +134,7 @@ def process_videos(video_folder, output_filename="final_video.mp4", aspect_ratio
     font_size = 60  # Increased from 40 for better visibility
     line_spacing = 70  # Increased from 50 to accommodate larger text
     start_x = 100  # Left margin increased from 50 to 100 pixels
-    start_y = 400  # Moved down from 50 to center text more vertically (for 1920 height)
+    start_y = 540  # Moved down to add 2 empty lines before ranking (was 400, +140px for 2 lines)
     
     audio_labels = []
     
@@ -220,7 +220,7 @@ def process_videos(video_folder, output_filename="final_video.mp4", aspect_ratio
         # "OP : @[original poster]"
         op_text = f"OP : @{vid['op']}"
         op_text = op_text.replace(":", "\\:").replace("'", "")
-        op_y_pos = start_y + 5 * line_spacing + 70  # Extra spacing (70px instead of 20px) to create empty line effect
+        op_y_pos = start_y + 5 * line_spacing + 280  # Extra spacing: 70px original + 210px (3 lines) = 280px total
         
         filter_step = f"{chain_in}drawtext=fontfile='arialbd.ttf':text='{op_text}':fontcolor={color_neon_blue}:fontsize={font_size}:x={start_x}:y={op_y_pos}[{chain_out}];"
         filter_complex += filter_step
