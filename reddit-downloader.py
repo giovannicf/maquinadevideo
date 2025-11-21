@@ -3,15 +3,15 @@ import os
 import subprocess
 import sys
 
-def download_reddit_videos(url, folder, download_images=False):
+def download_reddit_videos(url, folder, download_images=False, downloader="yt-dlp"):
     """
     Downloads videos (and optionally images) from a Reddit URL to a specified folder.
     
     Args:
         url (str): The Reddit URL.
         folder (str): The output subfolder name (will be created inside 'downloads/').
-        download_images (bool): If True, download images and videos using gallery-dl.
-                                If False, download only videos using yt-dlp.
+        download_images (bool): If True, download images and videos.
+        downloader (str): The tool to use ('yt-dlp' or 'gallery-dl').
     """
     # Define the base downloads directory
     base_dir = "downloads"
@@ -31,17 +31,30 @@ def download_reddit_videos(url, folder, download_images=False):
     ffmpeg_path = r"C:\harley\pes\ffmpeg\bin"
     os.environ["PATH"] = ffmpeg_path + os.pathsep + os.environ["PATH"]
 
-    if download_images:
-        # Use gallery-dl to download everything (images + videos)
-        print("Image download ENABLED. Using gallery-dl...")
+    command = []
+    
+    if downloader == "gallery-dl":
+        print(f"Using gallery-dl...")
         command = [
             sys.executable, "-m", "gallery_dl",
             "--directory", full_path,
             url
         ]
-    else:
-        # Use yt-dlp to download ONLY videos
-        print("Image download DISABLED. Using yt-dlp for videos only...")
+        
+        if not download_images:
+            print("Image download DISABLED. Filtering out image extensions...")
+            # Filter out common image extensions
+            command.extend(["--filter", "extension not in ('jpg', 'jpeg', 'png', 'gif', 'webp')"])
+        else:
+            print("Image download ENABLED.")
+
+    else: # downloader == "yt-dlp"
+        print(f"Using yt-dlp...")
+        # yt-dlp defaults to videos. 
+        # If user wanted images with yt-dlp, it's not really supported well, so we just run it.
+        if download_images:
+             print("Warning: yt-dlp is primarily for videos. Some images might not be downloaded.")
+        
         # -o specifies the output template inside the folder
         # --paths specifies the download directory
         command = [
@@ -71,7 +84,8 @@ if __name__ == "__main__":
     parser.add_argument("url", help="The Reddit URL to download from.")
     parser.add_argument("folder", help="The subfolder name to save the downloaded videos (inside 'downloads/').")
     parser.add_argument("--images", action="store_true", help="Enable image downloading. Default is False (videos only).")
+    parser.add_argument("--downloader", choices=["yt-dlp", "gallery-dl"], default="yt-dlp", help="Choose the downloader tool. Default is yt-dlp.")
 
     args = parser.parse_args()
 
-    download_reddit_videos(args.url, args.folder, args.images)
+    download_reddit_videos(args.url, args.folder, args.images, args.downloader)
