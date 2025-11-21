@@ -1,0 +1,77 @@
+import argparse
+import os
+import subprocess
+import sys
+
+def download_reddit_videos(url, folder, download_images=False):
+    """
+    Downloads videos (and optionally images) from a Reddit URL to a specified folder.
+    
+    Args:
+        url (str): The Reddit URL.
+        folder (str): The output subfolder name (will be created inside 'downloads/').
+        download_images (bool): If True, download images and videos using gallery-dl.
+                                If False, download only videos using yt-dlp.
+    """
+    # Define the base downloads directory
+    base_dir = "downloads"
+    # Construct the full path
+    full_path = os.path.join(base_dir, folder)
+
+    # Create the folder if it doesn't exist
+    if not os.path.exists(full_path):
+        try:
+            os.makedirs(full_path)
+            print(f"Created directory: {full_path}")
+        except OSError as e:
+            print(f"Error creating directory {full_path}: {e}")
+            sys.exit(1)
+
+    # Add ffmpeg to PATH
+    ffmpeg_path = r"C:\harley\pes\ffmpeg\bin"
+    os.environ["PATH"] = ffmpeg_path + os.pathsep + os.environ["PATH"]
+
+    if download_images:
+        # Use gallery-dl to download everything (images + videos)
+        print("Image download ENABLED. Using gallery-dl...")
+        command = [
+            sys.executable, "-m", "gallery_dl",
+            "--directory", full_path,
+            url
+        ]
+    else:
+        # Use yt-dlp to download ONLY videos
+        print("Image download DISABLED. Using yt-dlp for videos only...")
+        # -o specifies the output template inside the folder
+        # --paths specifies the download directory
+        command = [
+            sys.executable, "-m", "yt_dlp",
+            "--paths", full_path,
+            "-o", "%(title)s.%(ext)s",
+            url
+        ]
+
+    print(f"Downloading from {url} to {full_path}...")
+    print(f"Command: {' '.join(command)}")
+
+    try:
+        subprocess.run(command, check=True)
+        print("Download completed successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error occurred during download: {e}")
+        # Don't exit immediately if it's just a "no video found" error from yt-dlp, 
+        # but usually check=True raises the error.
+        sys.exit(1)
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Download videos from Reddit.")
+    parser.add_argument("url", help="The Reddit URL to download from.")
+    parser.add_argument("folder", help="The subfolder name to save the downloaded videos (inside 'downloads/').")
+    parser.add_argument("--images", action="store_true", help="Enable image downloading. Default is False (videos only).")
+
+    args = parser.parse_args()
+
+    download_reddit_videos(args.url, args.folder, args.images)

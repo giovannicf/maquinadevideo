@@ -23,7 +23,7 @@ def process_videos(video_folder="video1", logo_path="logo.png", output_filename=
     # Logo in top center.
 
     ffmpeg_command = [
-        "ffmpeg",
+        r"C:\harley\pes\ffmpeg\bin\ffmpeg.exe",
         "-y",
         "-f", "concat",
         "-safe", "0",
