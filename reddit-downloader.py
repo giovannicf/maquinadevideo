@@ -53,7 +53,6 @@ def download_reddit_videos(url, folder, download_images=False, downloader="yt-dl
             "--directory", full_path,
             "--filename", "{id}__{author}__{title}.{extension}",
             "--download-archive", archive_path,
-            "--skip", "true",  # Skip files that can't be downloaded instead of aborting
             "--sleep-request", "2",  # Wait 2 seconds between requests to avoid rate limiting
             "--sleep-extractor", "5",  # Wait 5 seconds between different extractors
             url
