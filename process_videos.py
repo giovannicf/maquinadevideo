@@ -6,20 +6,37 @@ import sys
 
 def parse_filename(filename):
     """
-    Parses filename in format [N]__[OP]__[Title].ext
-    Returns (index, op, title) or None if not matching.
+    Parses filename in format [N]__[ID]__[OP]__[Title].ext (new format)
+    or [N]__[OP]__[Title].ext (old format for backward compatibility)
+    Returns (index, op, title) for old format or (index, reddit_id, op, title) for new format.
+    Returns None if not matching either pattern.
     """
     # Remove extension
     name, ext = os.path.splitext(filename)
     parts = name.split("__")
+    
+    # New format: [N]__[ID]__[OP]__[Title]
+    if len(parts) >= 4:
+        try:
+            index = int(parts[0])
+            reddit_id = parts[1]
+            op = parts[2]
+            title = "__".join(parts[3:]) # Rejoin title if it had underscores
+            return index, reddit_id, op, title
+        except ValueError:
+            pass
+    
+    # Old format: [N]__[OP]__[Title]
     if len(parts) >= 3:
         try:
             index = int(parts[0])
             op = parts[1]
             title = "__".join(parts[2:]) # Rejoin title if it had underscores
-            return index, op, title
+            # Return with None for reddit_id to indicate old format
+            return index, None, op, title
         except ValueError:
             pass
+    
     return None
 
 def has_audio(filename):
@@ -84,7 +101,14 @@ def process_videos(video_folder, output_filename="final_video.mp4", aspect_ratio
     for f in files:
         parsed = parse_filename(f)
         if parsed:
-            parsed_videos.append({'file': f, 'index': parsed[0], 'op': parsed[1], 'title': parsed[2]})
+            # Handle both old (3 elements) and new (4 elements) formats
+            if len(parsed) == 4:
+                index, reddit_id, op, title = parsed
+            else:
+                # Old format compatibility (shouldn't happen with new workflow)
+                index, op, title = parsed
+                reddit_id = None
+            parsed_videos.append({'file': f, 'index': index, 'reddit_id': reddit_id, 'op': op, 'title': title})
         else:
             print(f"Skipping file (invalid format): {f}")
 
