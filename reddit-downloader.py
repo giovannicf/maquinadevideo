@@ -53,15 +53,20 @@ def download_reddit_videos(url, folder, download_images=False, downloader="yt-dl
             "--directory", full_path,
             "--filename", "{id}__{author}__{title}.{extension}",
             "--download-archive", archive_path,
+            "--skip", "true",  # Skip files that can't be downloaded instead of aborting
+            "--sleep-request", "2",  # Wait 2 seconds between requests to avoid rate limiting
+            "--sleep-extractor", "5",  # Wait 5 seconds between different extractors
             url
         ]
         
         if not download_images:
             print("Image download DISABLED. Filtering out image extensions...")
+            print("Rate limiting enabled: 2s between requests, 5s between extractors")
             # Filter out common image extensions
             command.extend(["--filter", "extension not in ('jpg', 'jpeg', 'png', 'gif', 'webp')"])
         else:
             print("Image download ENABLED.")
+            print("Rate limiting enabled: 2s between requests, 5s between extractors")
 
     else: # downloader == "yt-dlp"
         print(f"Using yt-dlp...")
@@ -93,18 +98,24 @@ def download_reddit_videos(url, folder, download_images=False, downloader="yt-dl
     print(f"Command: {' '.join(command)}")
 
     try:
-        subprocess.run(command, check=True)
-        print("Download completed successfully.")
-        print(f"Archive file updated: {archive_path}")
+        result = subprocess.run(command, check=False)  # Don't raise exception on non-zero exit
+        
+        if result.returncode == 0:
+            print("Download completed successfully.")
+            print(f"Archive file updated: {archive_path}")
+        else:
+            print(f"\nDownload finished with errors (exit code: {result.returncode})")
+            print(f"Some files may have failed to download.")
+            print(f"\nIMPORTANT: Successfully downloaded files are tracked in the archive.")
+            print(f"You can safely re-run the same command to continue downloading:")
+            print(f"  python reddit-downloader.py {url} {folder} {'--images ' if download_images else ''}--downloader {downloader}")
+            print(f"\nAlready downloaded files will be skipped automatically.")
+            # Don't exit with error - let the script complete normally
             
-    except subprocess.CalledProcessError as e:
-        print(f"Error occurred during download: {e}")
-        # Don't exit immediately if it's just a "no video found" error from yt-dlp, 
-        # but usually check=True raises the error.
-        sys.exit(1)
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
-        sys.exit(1)
+        print(f"\nArchive file location: {archive_path}")
+        print(f"You can re-run the command to continue from where it stopped.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download videos from Reddit.")
